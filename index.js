@@ -236,37 +236,144 @@ async function main() {
         }
       );
 
-      res.sendStatus(200);
+      res.sendStatus(204);
     } catch (error) {
       res.status(500).send({ error });
     }
   });
 
   // review routes
-  app.get("/reviews/:yarnId", async function (req, res) {
-    const db = mongoUtils.getDB();
-    // return content, rating, img_url, author, yarns used, created_at
-    // sorted latest to oldest
+  app.get("/reviews/yarn/:id", async function (req, res) {
+    try {
+      const db = mongoUtils.getDB();
+      const yarnId = req.params.id;
+
+      const reviews = await db
+        .collection(collections.reviews)
+        .find({ yarn: ObjectId(yarnId) })
+        .toArray();
+
+      res.status(200).send({
+        data: reviews,
+      });
+    } catch (error) {
+      res.status(500).send({ error });
+    }
   });
 
-  app.get("/reviews/:userId", async function (req, res) {
-    const db = mongoUtils.getDB();
-    // return content, rating, img_url, yarns used, created_at
-    // sorted latest to oldest
-  });
-  app.post("/reviews", async function (req, res) {
-    const db = mongoUtils.getDB();
-    // body: content, rating, author id, yarns used
-    // return _id of new review
+  app.get("/reviews/user/:id", async function (req, res) {
+    try {
+      const db = mongoUtils.getDB();
+      const userId = req.params.id;
+      const reviews = await db
+        .collection(collections.reviews)
+        .find({ author: ObjectId(userId) })
+        .toArray();
+
+      res.status(200).send({
+        data: reviews,
+      });
+    } catch (error) {
+      res.status(500).send({ error });
+    }
   });
 
-  app.put("/reviews/:id", async function (req, res) {
-    const db = mongoUtils.getDB();
-    // body: content, rating, author id, yarns used
+  // ToDo: to be tested
+  app.post("/reviews", authenticateToken, async function (req, res) {
+    try {
+      const db = mongoUtils.getDB();
+      const { content, rating, authorId, yarnId, img_url } = req.body;
+
+      const userObj = await db.collection(collections.users).findOne({
+        _id: ObjectId(authorId),
+      });
+
+      const jwtUsername = req.user.username;
+      if (!userObj || userObj.username !== jwtUsername) {
+        res.sendStatus(401);
+        return;
+      }
+
+      const newReviewDoc = {
+        content,
+        rating,
+        author: ObjectId(authorId),
+        yarn: ObjectId(yarnId),
+        img_url,
+        created_at: new Timestamp(),
+      };
+
+      const newId = await db
+        .collection(collections.reviews)
+        .insertOne(newReviewDoc);
+
+      res.status(201).send({ newId });
+    } catch (error) {
+      res.status(500).send({ error });
+    }
   });
 
-  app.delete("/reviews/:id", async function (req, res) {
-    const db = mongoUtils.getDB();
+  // ToDo: to be tested
+  app.put("/reviews/:id", authenticateToken, async function (req, res) {
+    try {
+      const db = mongoUtils.getDB();
+      const { content, rating, authorId, yarnId, img_url } = req.body;
+
+      const userObj = await db.collection(collections.users).findOne({
+        _id: ObjectId(authorId),
+      });
+
+      const jwtUsername = req.user.username;
+      if (!userObj || userObj.username !== jwtUsername) {
+        res.sendStatus(401);
+        return;
+      }
+
+      const updateObj = {
+        content,
+        rating,
+        author: ObjectId(authorId),
+        yarn: ObjectId(yarnId),
+        img_url,
+      };
+
+      await db.collection(collections.reviews).updateOne(
+        {
+          _id: ObjectId(req.params.id),
+        },
+        {
+          $set: updateObj,
+        }
+      );
+
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(500).send({ error });
+    }
+  });
+
+  // ToDo: to be tested
+  app.delete("/reviews/:id", authenticateToken, async function (req, res) {
+    try {
+      const db = mongoUtils.getDB();
+      const userObj = await db.collection(collections.users).findOne({
+        _id: ObjectId(authorId),
+      });
+
+      const jwtUsername = req.user.username;
+      if (!userObj || userObj.username !== jwtUsername) {
+        res.sendStatus(401);
+        return;
+      }
+
+      await db.collection(collections.reviews).deleteOne({
+        _id: ObjectId(req.params.id),
+      });
+
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(500).send({ error });
+    }
   });
 }
 
