@@ -202,6 +202,46 @@ async function main() {
     }
   });
 
+  app.put("/users/:id", authenticateToken, async function (req, res) {
+    try {
+      const db = mongoUtils.getDB();
+      const userId = req.params.id;
+      const { username, password } = req.body;
+
+      if (!username && !password) {
+        res.sendStatus(400);
+        return;
+      }
+
+      const userObj = await db.collection(collections.users).findOne({
+        _id: ObjectId(userId),
+      });
+
+      const jwtUsername = req.user.username;
+      if (!userObj || userObj.username !== jwtUsername) {
+        res.sendStatus(401);
+        return;
+      }
+
+      let updateObj = {};
+      if (!!username) updateObj.username = username;
+      if (!!password) updateObj.password = encrypt(password);
+
+      await db.collection(collections.users).updateOne(
+        {
+          _id: ObjectId(userId),
+        },
+        {
+          $set: updateObj,
+        }
+      );
+
+      res.sendStatus(200);
+    } catch (error) {
+      res.status(500).send({ error });
+    }
+  });
+
   // review routes
   app.get("/reviews/:yarnId", async function (req, res) {
     const db = mongoUtils.getDB();
