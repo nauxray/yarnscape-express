@@ -124,7 +124,18 @@ async function main() {
         return;
       }
 
-      // ToDo: input validation, check username exist
+      const regex = new RegExp(/^[a-z0-9]+$/i);
+      if (!regex.test(username)) {
+        res.status(409).send("Username must be alphanumeric");
+        return;
+      }
+
+      const usersCollection = await db.collection(collections.users);
+      const usernameExists = !!(await usersCollection.findOne({ username }));
+      if (usernameExists) {
+        res.status(409).send("Username already exists");
+        return;
+      }
 
       const newUser = {
         username,
@@ -133,7 +144,7 @@ async function main() {
         created_at: new Timestamp(),
       };
 
-      const result = await db.collection(collections.users).insertOne(newUser);
+      const result = await usersCollection.insertOne(newUser);
       res.status(201).send({ jwt: generateAccessToken(result.insertedId) });
     } catch (error) {
       res.status(500).send({ error });
