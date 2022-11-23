@@ -31,16 +31,16 @@ async function main() {
   await mongoUtils.connect(url, dbName);
   console.log("connected to the database:", dbName);
 
+  const db = mongoUtils.getDB();
+  const yarnsColl = await db.collection(collections.yarns);
+  const usersColl = await db.collection(collections.users);
+  const reviewsColl = await db.collection(collections.reviews);
+
   // yarn routes
   app.get("/yarns", async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
-      const yarnListings = await db
-        .collection(collections.yarns)
-        .find({})
-        .toArray();
-
-      res.status(200).send(yarnListings);
+      const yarns = await yarnsColl.findOne({ _id: ObjectId(id) });
+      res.status(200).send(yarns);
     } catch (error) {
       res.status(500).send({ error });
     }
@@ -49,12 +49,7 @@ async function main() {
   app.get("/yarns/:id", async function (req, res) {
     try {
       const id = req.params.id;
-      const db = mongoUtils.getDB();
-
-      const yarnListing = await db.collection(collections.yarns).findOne({
-        _id: ObjectId(id),
-      });
-
+      const yarnListing = await yarnsColl.findOne({ _id: ObjectId(id) });
       res.status(200).send(yarnListing);
     } catch (error) {
       res.status(500).send({ error });
@@ -63,8 +58,6 @@ async function main() {
 
   app.post("/yarns", authenticateToken, async (req, res) => {
     try {
-      const db = mongoUtils.getDB();
-
       const {
         name,
         color,
@@ -104,10 +97,7 @@ async function main() {
         created_at: new Timestamp(),
       };
 
-      const result = await db
-        .collection(collections.yarns)
-        .insertOne(newYarnDoc);
-
+      const result = await yarnsColl.insertOne(newYarnDoc);
       res.status(201).send(result);
     } catch (error) {
       res.status(500).send({ error });
@@ -117,7 +107,6 @@ async function main() {
   // user routes
   app.post("/users/create", async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
       const { username, password } = req.body;
       if (!username || !password) {
         res.status(400).send("Required fields not filled");
@@ -130,8 +119,7 @@ async function main() {
         return;
       }
 
-      const usersCollection = await db.collection(collections.users);
-      const usernameExists = !!(await usersCollection.findOne({ username }));
+      const usernameExists = !!(await usersColl.findOne({ username }));
       if (usernameExists) {
         res.status(409).send("Username already exists");
         return;
@@ -144,7 +132,7 @@ async function main() {
         created_at: new Timestamp(),
       };
 
-      const result = await usersCollection.insertOne(newUser);
+      const result = await usersColl.insertOne(newUser);
       res.status(201).send({ jwt: generateAccessToken(result.insertedId) });
     } catch (error) {
       res.status(500).send({ error });
@@ -153,17 +141,13 @@ async function main() {
 
   app.post("/login", async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
       const { username, password } = req.body;
       if (!username || !password) {
         res.status(400).send("Required fields not filled");
         return;
       }
 
-      const matchingUser = await db.collection(collections.users).findOne({
-        username,
-      });
-
+      const matchingUser = await usersColl.findOne({ username });
       if (!matchingUser || decrypt(matchingUser.password) !== password) {
         res.status(401).send("Invalid credentials");
         return;
@@ -177,14 +161,10 @@ async function main() {
 
   app.get("/users/:id", async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
-
-      const matchingUser = await db
-        .collection(collections.users)
-        .findOne(
-          { _id: ObjectId(req.params.id) },
-          { projection: { password: 0 } }
-        );
+      const matchingUser = await usersColl.findOne(
+        { _id: ObjectId(req.params.id) },
+        { projection: { password: 0 } }
+      );
 
       res.status(200).send(matchingUser);
     } catch (error) {
@@ -194,7 +174,6 @@ async function main() {
 
   app.put("/users/:id", authenticateToken, async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
       const userId = req.params.id;
       const { username, password } = req.body;
 
@@ -212,9 +191,7 @@ async function main() {
       if (!!username) updateObj.username = username;
       if (!!password) updateObj.password = encrypt(password);
 
-      await db
-        .collection(collections.users)
-        .updateOne({ _id: ObjectId(userId) }, { $set: updateObj });
+      await usersColl.updateOne({ _id: ObjectId(userId) }, { $set: updateObj });
 
       res.sendStatus(204);
     } catch (error) {
@@ -225,9 +202,7 @@ async function main() {
   // review routes
   app.get("/reviews/yarn/:id", async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
-      const reviews = await db
-        .collection(collections.reviews)
+      const reviews = await reviewsColl
         .find({ yarn: ObjectId(req.params.id) }, { projection: { yarn: 0 } })
         .toArray();
 
@@ -239,9 +214,7 @@ async function main() {
 
   app.get("/reviews/user/:id", async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
-      const reviews = await db
-        .collection(collections.reviews)
+      const reviews = await reviewsColl
         .find(
           { author: ObjectId(req.params.id) },
           { projection: { author: 0 } }
@@ -256,13 +229,9 @@ async function main() {
 
   app.post("/reviews/:id", authenticateToken, async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
       const { content, rating, img_url } = req.body;
       const yarnId = req.params.id;
       const authorId = req.user.userId;
-
-      const yarnsCollection = await db.collection(collections.yarns);
-      const reviewsCollection = await db.collection(collections.reviews);
 
       const newReviewDoc = {
         content,
@@ -273,13 +242,13 @@ async function main() {
         created_at: new Timestamp(),
       };
 
-      const result = await reviewsCollection.insertOne(newReviewDoc);
+      const result = await reviewsColl.insertOne(newReviewDoc);
 
-      const updatedReviews = await reviewsCollection
+      const updatedReviews = await reviewsColl
         .find({ yarn: ObjectId(yarnId) }, { projection: { rating: 1 } })
         .toArray();
       // add review Id to yarn document, update avg rating
-      await yarnsCollection.updateOne(
+      await yarnsColl.updateOne(
         { _id: ObjectId(yarnId) },
         {
           $push: { reviews: result.insertedId },
@@ -287,12 +256,10 @@ async function main() {
         }
       );
       // add review Id to user document
-      await db
-        .collection(collections.users)
-        .updateOne(
-          { _id: ObjectId(authorId) },
-          { $push: { reviews: result.insertedId } }
-        );
+      await usersColl.updateOne(
+        { _id: ObjectId(authorId) },
+        { $push: { reviews: result.insertedId } }
+      );
 
       res.status(201).send(result);
     } catch (error) {
@@ -302,17 +269,15 @@ async function main() {
 
   app.put("/reviews/:id", authenticateToken, async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
       const { content, rating, img_url } = req.body;
       const reviewId = req.params.id;
 
-      const reviewsCollection = await db.collection(collections.reviews);
-      const reviewToEdit = await reviewsCollection.findOne({
+      const reviewToEdit = await reviewsColl.findOne({
         _id: ObjectId(reviewId),
       });
 
       // verify token user === review author
-      const author = await db.collection(collections.users).findOne({
+      const author = await usersColl.findOne({
         _id: ObjectId(reviewToEdit.author),
       });
 
@@ -322,22 +287,20 @@ async function main() {
         return;
       }
       // update review doc
-      await reviewsCollection.updateOne(
+      await reviewsColl.updateOne(
         { _id: ObjectId(reviewId) },
         { $set: { content, rating, img_url } }
       );
       // update yarn avg rating
       if (rating !== reviewToEdit.rating) {
-        const updatedReviews = await reviewsCollection
+        const updatedReviews = await reviewsColl
           .find({ yarn: reviewToEdit.yarn }, { projection: { rating: 1 } })
           .toArray();
 
-        await db
-          .collection(collections.yarns)
-          .updateOne(
-            { _id: reviewToEdit.yarn },
-            { $set: { average_rating: calculateAvgRating(updatedReviews) } }
-          );
+        await yarnsColl.updateOne(
+          { _id: reviewToEdit.yarn },
+          { $set: { average_rating: calculateAvgRating(updatedReviews) } }
+        );
       }
 
       res.sendStatus(204);
@@ -348,17 +311,13 @@ async function main() {
 
   app.delete("/reviews/:id", authenticateToken, async function (req, res) {
     try {
-      const db = mongoUtils.getDB();
       const reviewId = req.params.id;
 
-      const usersCollection = await db.collection(collections.users);
-      const reviewsCollection = await db.collection(collections.reviews);
-
-      const reviewToDelete = await reviewsCollection.findOne({
+      const reviewToDelete = await reviewsColl.findOne({
         _id: ObjectId(reviewId),
       });
       // verify token user === review author
-      const author = await usersCollection.findOne({
+      const author = await usersColl.findOne({
         _id: ObjectId(reviewToDelete.author),
       });
 
@@ -368,15 +327,15 @@ async function main() {
         return;
       }
       // delete review document
-      await reviewsCollection.deleteOne({
+      await reviewsColl.deleteOne({
         _id: ObjectId(reviewId),
       });
       // delete review Id from yarn document & update avg rating
-      const updatedReviews = await reviewsCollection
+      const updatedReviews = await reviewsColl
         .find({ yarn: reviewToDelete.yarn }, { projection: { rating: 1 } })
         .toArray();
 
-      await db.collection(collections.yarns).updateOne(
+      await yarnsColl.updateOne(
         { _id: reviewToDelete.yarn },
         {
           $pull: { reviews: ObjectId(reviewId) },
@@ -384,7 +343,7 @@ async function main() {
         }
       );
       // delete review Id from user document
-      await usersCollection.updateOne(
+      await usersColl.updateOne(
         { _id: reviewToDelete.author },
         { $pull: { reviews: ObjectId(reviewId) } }
       );
