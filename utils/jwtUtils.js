@@ -4,8 +4,8 @@ const jwt = require("jsonwebtoken");
 dotenv.config();
 const secret = process.env.TOKEN_SECRET;
 
-const generateAccessToken = (username) => {
-  return jwt.sign({ username }, secret, { expiresIn: "1800s" });
+const generateAccessToken = (userId) => {
+  return jwt.sign({ userId }, secret, { expiresIn: "24h" });
 };
 
 const authenticateToken = (req, res, next) => {

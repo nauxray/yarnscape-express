@@ -3,6 +3,7 @@ const { ObjectId, Timestamp } = require("mongodb");
 const mongoUtils = require("./utils/mongoUtils");
 const { generateAccessToken, authenticateToken } = require("./utils/jwtUtils");
 const { encrypt, decrypt } = require("./utils/encryptionUtils");
+const { calculateAvgRating } = require("./utils/calculateRating");
 
 const PORT = 8000;
 const dbName = "yarnReviewData";
@@ -39,9 +40,7 @@ async function main() {
         .find({})
         .toArray();
 
-      res.status(200).send({
-        data: yarnListings,
-      });
+      res.status(200).send(yarnListings);
     } catch (error) {
       res.status(500).send({ error });
     }
@@ -56,9 +55,7 @@ async function main() {
         _id: ObjectId(id),
       });
 
-      res.status(200).send({
-        data: yarnListing,
-      });
+      res.status(200).send(yarnListing);
     } catch (error) {
       res.status(500).send({ error });
     }
@@ -79,31 +76,25 @@ async function main() {
         img_url,
       } = req.body;
 
-      const authorUsername = req.user.username;
-
       if (
         !name ||
         !color ||
         !weight ||
         !hook_size ||
         !needle_size ||
-        !materials ||
-        !authorUsername
+        !materials
       ) {
         res.status(400).send("Required fields not filled");
         return;
       }
 
-      const author = await db.collection(collections.users).findOne({
-        username: authorUsername,
-      });
-
+      const authorId = req.user.userId;
       const newYarnDoc = {
         name,
         color,
         weight,
         average_rating: 0,
-        posted_by: author._id,
+        posted_by: authorId,
         brand,
         recommended_hook_size: hook_size,
         recommended_needle_size: needle_size,
@@ -113,11 +104,11 @@ async function main() {
         created_at: new Timestamp(),
       };
 
-      const newId = await db
+      const result = await db
         .collection(collections.yarns)
         .insertOne(newYarnDoc);
 
-      res.status(201).send({ newId });
+      res.status(201).send(result);
     } catch (error) {
       res.status(500).send({ error });
     }
@@ -142,13 +133,8 @@ async function main() {
         created_at: new Timestamp(),
       };
 
-      const newUserId = await db
-        .collection(collections.users)
-        .insertOne(newUser);
-
-      const jwt = generateAccessToken(username);
-
-      res.status(201).send({ newUserId, jwt });
+      const result = await db.collection(collections.users).insertOne(newUser);
+      res.status(201).send({ jwt: generateAccessToken(result.insertedId) });
     } catch (error) {
       res.status(500).send({ error });
     }
@@ -172,9 +158,7 @@ async function main() {
         return;
       }
 
-      const jwt = generateAccessToken(username);
-
-      res.status(200).send({ jwt });
+      res.status(200).send({ jwt: generateAccessToken(matchingUser._id) });
     } catch (error) {
       res.status(500).send({ error });
     }
@@ -184,19 +168,14 @@ async function main() {
     try {
       const db = mongoUtils.getDB();
 
-      const matchingUser = await db.collection(collections.users).findOne({
-        _id: ObjectId(req.params.id),
-      });
+      const matchingUser = await db
+        .collection(collections.users)
+        .findOne(
+          { _id: ObjectId(req.params.id) },
+          { projection: { password: 0 } }
+        );
 
-      if (!matchingUser) {
-        res.status(404).send("User not found");
-        return;
-      }
-
-      const userObj = Object.assign({}, matchingUser);
-      delete userObj.password;
-
-      res.status(200).send({ data: matchingUser });
+      res.status(200).send(matchingUser);
     } catch (error) {
       res.status(500).send({ error });
     }
@@ -213,12 +192,7 @@ async function main() {
         return;
       }
 
-      const userObj = await db.collection(collections.users).findOne({
-        _id: ObjectId(userId),
-      });
-
-      const jwtUsername = req.user.username;
-      if (!userObj || userObj.username !== jwtUsername) {
+      if (userId !== req.user.userId) {
         res.sendStatus(401);
         return;
       }
@@ -227,14 +201,9 @@ async function main() {
       if (!!username) updateObj.username = username;
       if (!!password) updateObj.password = encrypt(password);
 
-      await db.collection(collections.users).updateOne(
-        {
-          _id: ObjectId(userId),
-        },
-        {
-          $set: updateObj,
-        }
-      );
+      await db
+        .collection(collections.users)
+        .updateOne({ _id: ObjectId(userId) }, { $set: updateObj });
 
       res.sendStatus(204);
     } catch (error) {
@@ -246,16 +215,12 @@ async function main() {
   app.get("/reviews/yarn/:id", async function (req, res) {
     try {
       const db = mongoUtils.getDB();
-      const yarnId = req.params.id;
-
       const reviews = await db
         .collection(collections.reviews)
-        .find({ yarn: ObjectId(yarnId) })
+        .find({ yarn: ObjectId(req.params.id) }, { projection: { yarn: 0 } })
         .toArray();
 
-      res.status(200).send({
-        data: reviews,
-      });
+      res.status(200).send(reviews);
     } catch (error) {
       res.status(500).send({ error });
     }
@@ -264,35 +229,29 @@ async function main() {
   app.get("/reviews/user/:id", async function (req, res) {
     try {
       const db = mongoUtils.getDB();
-      const userId = req.params.id;
       const reviews = await db
         .collection(collections.reviews)
-        .find({ author: ObjectId(userId) })
+        .find(
+          { author: ObjectId(req.params.id) },
+          { projection: { author: 0 } }
+        )
         .toArray();
 
-      res.status(200).send({
-        data: reviews,
-      });
+      res.status(200).send(reviews);
     } catch (error) {
       res.status(500).send({ error });
     }
   });
 
-  // ToDo: to be tested
-  app.post("/reviews", authenticateToken, async function (req, res) {
+  app.post("/reviews/:id", authenticateToken, async function (req, res) {
     try {
       const db = mongoUtils.getDB();
-      const { content, rating, authorId, yarnId, img_url } = req.body;
+      const { content, rating, img_url } = req.body;
+      const yarnId = req.params.id;
+      const authorId = req.user.userId;
 
-      const userObj = await db.collection(collections.users).findOne({
-        _id: ObjectId(authorId),
-      });
-
-      const jwtUsername = req.user.username;
-      if (!userObj || userObj.username !== jwtUsername) {
-        res.sendStatus(401);
-        return;
-      }
+      const yarnsCollection = await db.collection(collections.yarns);
+      const reviewsCollection = await db.collection(collections.reviews);
 
       const newReviewDoc = {
         content,
@@ -303,48 +262,72 @@ async function main() {
         created_at: new Timestamp(),
       };
 
-      const newId = await db
-        .collection(collections.reviews)
-        .insertOne(newReviewDoc);
+      const result = await reviewsCollection.insertOne(newReviewDoc);
 
-      res.status(201).send({ newId });
+      const updatedReviews = await reviewsCollection
+        .find({ yarn: ObjectId(yarnId) }, { projection: { rating: 1 } })
+        .toArray();
+      // add review Id to yarn document, update avg rating
+      await yarnsCollection.updateOne(
+        { _id: ObjectId(yarnId) },
+        {
+          $push: { reviews: result.insertedId },
+          $set: { average_rating: calculateAvgRating(updatedReviews) },
+        }
+      );
+      // add review Id to user document
+      await db
+        .collection(collections.users)
+        .updateOne(
+          { _id: ObjectId(authorId) },
+          { $push: { reviews: result.insertedId } }
+        );
+
+      res.status(201).send(result);
     } catch (error) {
       res.status(500).send({ error });
     }
   });
 
-  // ToDo: to be tested
   app.put("/reviews/:id", authenticateToken, async function (req, res) {
     try {
       const db = mongoUtils.getDB();
-      const { content, rating, authorId, yarnId, img_url } = req.body;
+      const { content, rating, img_url } = req.body;
+      const reviewId = req.params.id;
 
-      const userObj = await db.collection(collections.users).findOne({
-        _id: ObjectId(authorId),
+      const reviewsCollection = await db.collection(collections.reviews);
+      const reviewToEdit = await reviewsCollection.findOne({
+        _id: ObjectId(reviewId),
       });
 
-      const jwtUsername = req.user.username;
-      if (!userObj || userObj.username !== jwtUsername) {
+      // verify token user === review author
+      const author = await db.collection(collections.users).findOne({
+        _id: ObjectId(reviewToEdit.author),
+      });
+
+      const jwtUserId = req.user.userId;
+      if (!author || author._id.toString() !== jwtUserId) {
         res.sendStatus(401);
         return;
       }
-
-      const updateObj = {
-        content,
-        rating,
-        author: ObjectId(authorId),
-        yarn: ObjectId(yarnId),
-        img_url,
-      };
-
-      await db.collection(collections.reviews).updateOne(
-        {
-          _id: ObjectId(req.params.id),
-        },
-        {
-          $set: updateObj,
-        }
+      // update review doc
+      await reviewsCollection.updateOne(
+        { _id: ObjectId(reviewId) },
+        { $set: { content, rating, img_url } }
       );
+      // update yarn avg rating
+      if (rating !== reviewToEdit.rating) {
+        const updatedReviews = await reviewsCollection
+          .find({ yarn: reviewToEdit.yarn }, { projection: { rating: 1 } })
+          .toArray();
+
+        await db
+          .collection(collections.yarns)
+          .updateOne(
+            { _id: reviewToEdit.yarn },
+            { $set: { average_rating: calculateAvgRating(updatedReviews) } }
+          );
+      }
 
       res.sendStatus(204);
     } catch (error) {
@@ -352,23 +335,48 @@ async function main() {
     }
   });
 
-  // ToDo: to be tested
   app.delete("/reviews/:id", authenticateToken, async function (req, res) {
     try {
       const db = mongoUtils.getDB();
-      const userObj = await db.collection(collections.users).findOne({
-        _id: ObjectId(authorId),
+      const reviewId = req.params.id;
+
+      const usersCollection = await db.collection(collections.users);
+      const reviewsCollection = await db.collection(collections.reviews);
+
+      const reviewToDelete = await reviewsCollection.findOne({
+        _id: ObjectId(reviewId),
+      });
+      // verify token user === review author
+      const author = await usersCollection.findOne({
+        _id: ObjectId(reviewToDelete.author),
       });
 
-      const jwtUsername = req.user.username;
-      if (!userObj || userObj.username !== jwtUsername) {
+      const jwtUserId = req.user.userId;
+      if (!author || author._id.toString() !== jwtUserId) {
         res.sendStatus(401);
         return;
       }
-
-      await db.collection(collections.reviews).deleteOne({
-        _id: ObjectId(req.params.id),
+      // delete review document
+      await reviewsCollection.deleteOne({
+        _id: ObjectId(reviewId),
       });
+      // delete review Id from yarn document & update avg rating
+      const updatedReviews = await reviewsCollection
+        .find({ yarn: reviewToDelete.yarn }, { projection: { rating: 1 } })
+        .toArray();
+
+      await db.collection(collections.yarns).updateOne(
+        { _id: reviewToDelete.yarn },
+        {
+          $pull: { reviews: ObjectId(reviewId) },
+          $set: { average_rating: calculateAvgRating(updatedReviews) },
+        }
+      );
+      // delete review Id from user document
+      await usersCollection.updateOne(
+        { _id: reviewToDelete.author },
+        { $pull: { reviews: ObjectId(reviewId) } }
+      );
 
       res.sendStatus(204);
     } catch (error) {
