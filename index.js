@@ -27,6 +27,8 @@ app.use(
 
 app.use(express.json()); //required for postman POST req with raw JSON data
 
+const usernameRegex = new RegExp(/^[a-z0-9]+$/i);
+
 async function main() {
   await mongoUtils.connect(url, dbName);
   console.log("connected to the database:", dbName);
@@ -147,6 +149,16 @@ async function main() {
         return;
       }
 
+      if (
+        !parseInt(weight) ||
+        !parseFloat(hook_size) ||
+        !parseFloat(needle_size) ||
+        !materials.length === 0
+      ) {
+        res.status(400).send("Invalid input");
+        return;
+      }
+
       const authorId = req.user.userId;
       const newYarnDoc = {
         name,
@@ -179,8 +191,7 @@ async function main() {
         return;
       }
 
-      const regex = new RegExp(/^[a-z0-9]+$/i);
-      if (!regex.test(username)) {
+      if (!usernameRegex.test(username)) {
         res.status(409).send("Username must be alphanumeric");
         return;
       }
@@ -210,6 +221,11 @@ async function main() {
       const { username, password } = req.body;
       if (!username || !password) {
         res.status(400).send("Required fields not filled");
+        return;
+      }
+
+      if (!usernameRegex.test(username)) {
+        res.status(409).send("Username must be alphanumeric");
         return;
       }
 
@@ -244,7 +260,12 @@ async function main() {
       const { username, password } = req.body;
 
       if (!username && !password) {
-        res.sendStatus(400);
+        res.status(400).send("Required fields not filled");
+        return;
+      }
+
+      if (!usernameRegex.test(username)) {
+        res.status(409).send("Username must be alphanumeric");
         return;
       }
 
@@ -293,10 +314,20 @@ async function main() {
     }
   });
 
-  app.post("/reviews/:id", authenticateToken, async function (req, res) {
+  app.post("/reviews/:yarnId", authenticateToken, async function (req, res) {
     try {
       const { content, rating, img_url } = req.body;
-      const yarnId = req.params.id;
+
+      if (!content || !rating) {
+        res.status(400).send("Required fields not filled");
+        return;
+      }
+
+      if (!parseFloat(rating)) {
+        res.status(400).send("Invalid input");
+        return;
+      }
+      const yarnId = req.params.yarnId;
       const authorId = req.user.userId;
 
       const newReviewDoc = {
@@ -336,6 +367,17 @@ async function main() {
   app.put("/reviews/:id", authenticateToken, async function (req, res) {
     try {
       const { content, rating, img_url } = req.body;
+
+      if (!content || !rating) {
+        res.status(400).send("Required fields not filled");
+        return;
+      }
+
+      if (!parseFloat(rating)) {
+        res.status(400).send("Invalid input");
+        return;
+      }
+
       const reviewId = req.params.id;
 
       const reviewToEdit = await reviewsColl.findOne({
