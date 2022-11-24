@@ -39,7 +39,73 @@ async function main() {
   // yarn routes
   app.get("/yarns", async function (req, res) {
     try {
-      const yarns = await yarnsColl.find({}).toArray();
+      const queryObj = {};
+      const sortObj = {};
+      const reqQuery = req.query;
+      const queryKeys = Object.keys(reqQuery);
+
+      if (queryKeys.length > 0) {
+        queryKeys.forEach((key) => {
+          const value = reqQuery[key];
+          if (value.length === 0) return;
+
+          switch (key) {
+            case "name":
+            case "color":
+              queryObj[key] = { $regex: new RegExp(value, "i") };
+              break;
+            case "brand":
+              queryObj[key] = value;
+              break;
+            case "weight":
+              queryObj[key] = parseInt(value);
+              break;
+            case "materials":
+              queryObj[key] = { $elemMatch: { _id: value } };
+              break;
+            case "sort":
+              if (value.startsWith("name")) {
+                sortObj.name = value.split(":")[1] === "asc" ? 1 : -1;
+              }
+              if (value.startsWith("rating")) {
+                sortObj.average_rating = value.split(":")[1] === "asc" ? 1 : -1;
+              }
+              if (value.startsWith("reviews")) {
+                sortObj.reviewCount = value.split(":")[1] === "asc" ? 1 : -1;
+              }
+              break;
+            default:
+              break;
+          }
+        })
+      }
+
+      const aggregateArr = [
+        {
+          "$project": {
+            "name": 1,
+            "color": 1,
+            "weight": 1,
+            "average_rating": 1,
+            "posted_by": 1,
+            "brand": 1,
+            "recommended_hook_size": 1,
+            "recommended_needle_size": 1,
+            "materials": 1,
+            "reviews": 1,
+            "img_url": 1,
+            "created_at": 1,
+            "reviewCount": { "$size": "$reviews" }
+          }
+        },
+        { $match: queryObj }
+      ];
+
+      if (Object.keys(sortObj).length > 0) {
+        aggregateArr.push({ $sort: sortObj });
+      }
+
+      const yarns = await yarnsColl.aggregate(aggregateArr).toArray();
       res.status(200).send(yarns);
     } catch (error) {
       res.status(500).send({ error });
