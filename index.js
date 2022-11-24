@@ -118,7 +118,7 @@ async function main() {
       const yarnListing = await yarnsColl.findOne({ _id: ObjectId(id) });
       res.status(200).send(yarnListing);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -166,7 +166,7 @@ async function main() {
       const result = await yarnsColl.insertOne(newYarnDoc);
       res.status(201).send(result);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -201,7 +201,7 @@ async function main() {
       const result = await usersColl.insertOne(newUser);
       res.status(201).send({ jwt: generateAccessToken(result.insertedId) });
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -221,7 +221,7 @@ async function main() {
 
       res.status(200).send({ jwt: generateAccessToken(matchingUser._id) });
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -234,7 +234,7 @@ async function main() {
 
       res.status(200).send(matchingUser);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -261,7 +261,7 @@ async function main() {
 
       res.sendStatus(204);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -274,7 +274,7 @@ async function main() {
 
       res.status(200).send(reviews);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -289,7 +289,7 @@ async function main() {
 
       res.status(200).send(reviews);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -329,7 +329,7 @@ async function main() {
 
       res.status(201).send(result);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -371,7 +371,7 @@ async function main() {
 
       res.sendStatus(204);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 
@@ -416,7 +416,7 @@ async function main() {
 
       res.sendStatus(204);
     } catch (error) {
-      res.status(500).send({ error });
+      res.status(500).send(error);
     }
   });
 }
