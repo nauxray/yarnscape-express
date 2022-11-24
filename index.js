@@ -39,7 +39,7 @@ async function main() {
   // yarn routes
   app.get("/yarns", async function (req, res) {
     try {
-      const yarns = await yarnsColl.findOne({ _id: ObjectId(id) });
+      const yarns = await yarnsColl.find({}).toArray();
       res.status(200).send(yarns);
     } catch (error) {
       res.status(500).send({ error });
