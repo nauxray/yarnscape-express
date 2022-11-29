@@ -1,5 +1,6 @@
 const express = require("express");
 const { ObjectId, Timestamp } = require("mongodb");
+var cors = require("cors");
 const mongoUtils = require("./utils/mongoUtils");
 const { generateAccessToken, authenticateToken } = require("./utils/jwtUtils");
 const { encrypt, decrypt } = require("./utils/encryptionUtils");
@@ -26,6 +27,7 @@ app.use(
 );
 
 app.use(express.json()); //required for postman POST req with raw JSON data
+app.use(cors());
 
 const usernameRegex = new RegExp(/^[a-z0-9]+$/i);
 
@@ -79,28 +81,28 @@ async function main() {
             default:
               break;
           }
-        })
+        });
       }
 
       const aggregateArr = [
         {
-          "$project": {
-            "name": 1,
-            "color": 1,
-            "weight": 1,
-            "average_rating": 1,
-            "posted_by": 1,
-            "brand": 1,
-            "recommended_hook_size": 1,
-            "recommended_needle_size": 1,
-            "materials": 1,
-            "reviews": 1,
-            "img_url": 1,
-            "created_at": 1,
-            "reviewCount": { "$size": "$reviews" }
-          }
+          $project: {
+            name: 1,
+            color: 1,
+            weight: 1,
+            average_rating: 1,
+            posted_by: 1,
+            brand: 1,
+            recommended_hook_size: 1,
+            recommended_needle_size: 1,
+            materials: 1,
+            reviews: 1,
+            img_url: 1,
+            created_at: 1,
+            reviewCount: { $size: "$reviews" },
+          },
         },
-        { $match: queryObj }
+        { $match: queryObj },
       ];
 
       if (Object.keys(sortObj).length > 0) {
