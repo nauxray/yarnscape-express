@@ -40,6 +40,40 @@ async function main() {
   const usersColl = await db.collection(collections.users);
   const reviewsColl = await db.collection(collections.reviews);
 
+  // brand & material routes
+  app.get("/brands", async function (req, res) {
+    try {
+      const brands = await db.collection(collections.brands).find({}).toArray();
+      res.status(200).send(brands);
+    } catch (error) {
+      res.status(500).send(error);
+    }
+  });
+
+  app.get("/materials", async function (req, res) {
+    try {
+      const materials = await db
+        .collection(collections.materials)
+        .find({})
+        .toArray();
+      res.status(200).send(materials);
+    } catch (error) {
+      res.status(500).send(error);
+    }
+  });
+
+  app.get("/materials/:id", async function (req, res) {
+    try {
+      const id = req.params.id;
+      const material = await db
+        .collection(collections.materials)
+        .findOne({ _id: ObjectId(id) });
+      res.status(200).send(material);
+    } catch (error) {
+      res.status(500).send(error);
+    }
+  });
+
   // yarn routes
   app.get("/yarns", async function (req, res) {
     try {
