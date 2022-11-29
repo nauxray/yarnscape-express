@@ -108,6 +108,9 @@ async function main() {
       if (Object.keys(sortObj).length > 0) {
         aggregateArr.push({ $sort: sortObj });
       }
+      if (!!reqQuery.limit) {
+        aggregateArr.push({ $limit: parseInt(reqQuery.limit) });
+      }
 
       const yarns = await yarnsColl.aggregate(aggregateArr).toArray();
       res.status(200).send(yarns);
