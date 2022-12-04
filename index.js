@@ -303,7 +303,7 @@ async function main() {
         return;
       }
 
-      if (!usernameRegex.test(username)) {
+      if (username.length > 0 && !usernameRegex.test(username)) {
         res.status(409).send("Username must be alphanumeric");
         return;
       }
