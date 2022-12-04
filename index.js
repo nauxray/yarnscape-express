@@ -1,5 +1,5 @@
 const express = require("express");
-const { ObjectId, Timestamp } = require("mongodb");
+const { ObjectId } = require("mongodb");
 var cors = require("cors");
 const mongoUtils = require("./utils/mongoUtils");
 const { generateAccessToken, authenticateToken } = require("./utils/jwtUtils");
@@ -211,7 +211,7 @@ async function main() {
         materials,
         reviews: [],
         img_url: img_url ?? [],
-        created_at: new Timestamp(),
+        created_at: new Date().getTime(),
       };
 
       const result = await yarnsColl.insertOne(newYarnDoc);
@@ -245,7 +245,7 @@ async function main() {
         username,
         password: encrypt(password),
         reviews: [],
-        created_at: new Timestamp(),
+        created_at: new Date().getTime(),
       };
 
       const result = await usersColl.insertOne(newUser);
@@ -375,7 +375,7 @@ async function main() {
         author: ObjectId(authorId),
         yarn: ObjectId(yarnId),
         img_url,
-        created_at: new Timestamp(),
+        created_at: new Date().getTime(),
       };
 
       const result = await reviewsColl.insertOne(newReviewDoc);
