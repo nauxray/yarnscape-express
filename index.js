@@ -93,13 +93,13 @@ async function main() {
               queryObj[key] = { $regex: new RegExp(value, "i") };
               break;
             case "brand":
-              queryObj[key] = value;
+              queryObj[`${key}._id`] = ObjectId(value);
               break;
             case "weight":
               queryObj[key] = parseInt(value);
               break;
             case "materials":
-              queryObj[key] = { $elemMatch: { _id: value } };
+              queryObj[`${key}._id`] = { $in: value };
               break;
             case "sort":
               if (value.startsWith("name")) {
