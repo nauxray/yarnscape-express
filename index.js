@@ -313,6 +313,12 @@ async function main() {
         return;
       }
 
+      const usernameExists = !!(await usersColl.findOne({ username }));
+      if (usernameExists) {
+        res.status(409).send("Username already exists");
+        return;
+      }
+
       let updateObj = {};
       if (!!username) updateObj.username = username;
       if (!!password) updateObj.password = encrypt(password);
