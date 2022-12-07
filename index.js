@@ -332,10 +332,21 @@ async function main() {
   });
 
   // review routes
+  app.get("/reviews/:id", async function (req, res) {
+    try {
+      const reviews = await reviewsColl
+        .findOne({ _id: ObjectId(req.params.id) })
+
+      res.status(200).send(reviews);
+    } catch (error) {
+      res.status(500).send(error);
+    }
+  });
+
   app.get("/reviews/yarn/:id", async function (req, res) {
     try {
       const reviews = await reviewsColl
-        .find({ yarn: ObjectId(req.params.id) }, { projection: { yarn: 0 } })
+        .find({ yarn: ObjectId(req.params.id) })
         .toArray();
 
       res.status(200).send(reviews);
