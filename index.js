@@ -93,7 +93,7 @@ async function main() {
               queryObj[key] = { $regex: new RegExp(value, "i") };
               break;
             case "brand":
-              queryObj[`${key}._id`] = ObjectId(value);
+              queryObj[`${key}._id`] = value;
               break;
             case "weight":
               queryObj[key] = parseInt(value);
@@ -119,6 +119,7 @@ async function main() {
       }
 
       const aggregateArr = [
+        { $match: queryObj },
         {
           $project: {
             name: 1,
@@ -136,14 +137,13 @@ async function main() {
             reviewCount: { $size: "$reviews" },
           },
         },
-        { $match: queryObj },
       ];
 
-      if (Object.keys(sortObj).length > 0) {
-        aggregateArr.push({ $sort: sortObj });
-      }
       if (!!reqQuery.limit) {
         aggregateArr.push({ $limit: parseInt(reqQuery.limit) });
+      }
+      if (Object.keys(sortObj).length > 0) {
+        aggregateArr.push({ $sort: sortObj });
       }
 
       const yarns = await yarnsColl.aggregate(aggregateArr).toArray();
@@ -334,8 +334,9 @@ async function main() {
   // review routes
   app.get("/reviews/:id", async function (req, res) {
     try {
-      const reviews = await reviewsColl
-        .findOne({ _id: ObjectId(req.params.id) })
+      const reviews = await reviewsColl.findOne({
+        _id: ObjectId(req.params.id),
+      });
 
       res.status(200).send(reviews);
     } catch (error) {
