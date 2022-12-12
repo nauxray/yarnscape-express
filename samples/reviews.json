@@ -1,0 +1,11 @@
+{
+  "_id": { "$oid": "63974efcf3a467db1e851b28" },
+  "content": "I bought this yarn because I was curious about the reflective effects, and it really works! It's amazing =) I am working on a hat and scarf set and will try it out while walking my dog at night. Apart from the amazing effect, really unique on the market, the wool/polyamide combination is soft and warm, and easy to work too. All colours are very nice, I personally adore the red I've bought - not Rudolph-nose bright nor too dark, very stylish.",
+  "rating": { "$numberInt": "4" },
+  "author": { "$oid": "63974ec3f3a467db1e851b27" },
+  "yarn": { "$oid": "6390563c50d3bc07df4031ac" },
+  "img_url": [
+    "https://d2tk9av7ph0ga6.cloudfront.net/image/catalog/2019/starlight-hobbii-col-700xauto.jpg"
+  ],
+  "created_at": { "$numberDouble": "1.6708605404390E+12" }
+}
