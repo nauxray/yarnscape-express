@@ -1,0 +1,37 @@
+{
+  "_id": { "$oid": "6390563c50d3bc07df4031ac" },
+  "name": "Starlight",
+  "color": "Rose (2)",
+  "weight": { "$numberInt": "1" },
+  "average_rating": { "$numberInt": "5" },
+  "posted_by": "6390040bafce3acc6ad72b80",
+  "brand": {
+    "_id": "6390502432412e61f2c3cb66",
+    "description": "Bernat yarn is ideal for quick projects or large ones. It’s a treat to work with and comes in all the colors and patterns you need for your next project. A lot of Bernat yarn typically comes in large skein sizes and it’s available in a variety of weights, from big and bulky to thin and soft.",
+    "name": "Bernat"
+  },
+  "recommended_hook_size": { "$numberInt": "5" },
+  "recommended_needle_size": { "$numberInt": "5" },
+  "materials": [
+    {
+      "_id": "639054d532412e61f2c3cb70",
+      "name": "Superwash Wool",
+      "percentage": { "$numberInt": "60" }
+    },
+    {
+      "_id": "639054d532412e61f2c3cb72",
+      "name": "Reflective Thread",
+      "percentage": { "$numberInt": "15" }
+    },
+    {
+      "_id": "639054d532412e61f2c3cb71",
+      "name": "Polyester",
+      "percentage": { "$numberInt": "25" }
+    }
+  ],
+  "reviews": [{ "$oid": "6393c0874ae797554ec57f0e" }],
+  "img_url": [
+    "https://d2tk9av7ph0ga6.cloudfront.net/image/catalog/2019/hobbiistarlight-02-700xauto.jpg"
+  ],
+  "created_at": { "$numberDouble": "1.6704036442490E+12" }
+}

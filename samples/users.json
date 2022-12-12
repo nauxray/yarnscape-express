@@ -1,0 +1,7 @@
+{
+  "_id": { "$oid": "638ff0e3afce3acc6ad72b7c" },
+  "username": "nauxray",
+  "password": "6487c0d37a4a1690131202018d7b4985",
+  "reviews": [{ "$oid": "638ff1c2afce3acc6ad72b7e" }],
+  "created_at": { "$numberDouble": "1.6703776998380E+12" }
+}
